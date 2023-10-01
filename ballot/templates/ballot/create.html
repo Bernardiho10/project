@@ -7,23 +7,35 @@
     <form action="{% url 'ballot:create' %}" method="POST">
         {% csrf_token %}
         <div class="form-group">
-            <label for="voter-id-input">Your ID:</label>
+            <label for="voter-id-input">User ID:</label>
             <input name="voter-id-input" type="text" class="form-control" id="voter-id-input" placeholder="fe021e59-c29d-4532-9e99-5c42f1910af3" value="{{ voter_id }}" required autofocus>
+        </div>
+        <div class="form-group">
+            <label for="nin">National Identification Number (NIN):</label>
+            <input name="nin" type="number" class="form-control" id="nin"  value="{{ nin }}" required autofocus>
+        </div>
+        <div class="form-group">
+            <label for="ip_address">User IP:</label>
+            <input name="ip_address" type="text" class="form-control" id="ip_address" value="{{ ip_address }}" required autofocus>
+        </div>
+        <div class="form-group">
+            <label for="mac_address">Center Mac Address:</label>
+            <input name="mac_address" type="text" class="form-control" id="mac_address" value="{{ mac_address }}" required autofocus>
         </div>
         <div id="candidate" style="padding:20px 0;">
             <p style="text-align:center;">Eligible candidates are shown below:</p>
             <div class="row">
                 <div class="col-md-4">
-                    <p style="text-align: center;"><img src="{% static 'ballot/img/mercury.jpg' %}"></p>
-                    <p style="text-align: center;">Freddie Mercury (1)</p>
+                    <p style="text-align: center;"><img src="{% static 'ballot/img/bola.jpg' %}"></p>
+                    <p style="text-align: center;">Bola Tinubu (1)</p>
                 </div>
                 <div class="col-md-4">
-                    <p style="text-align: center;"><img src="{% static 'ballot/img/jovi.jpg' %}"></p>
-                    <p style="text-align: center;">Jon Bon Jovi (2)</p>
+                    <p style="text-align: center;"><img src="{% static 'ballot/img/atiku.jpg' %}"></p>
+                    <p style="text-align: center;">Atiku Abubakar (2)</p>
                 </div>
                 <div class="col-md-4">
-                    <p style="text-align: center;"><img src="{% static 'ballot/img/suicidal.jpg' %}"></p>
-                    <p style="text-align: center;">Suicidal Guy from Colourbox (3)</p>
+                    <p style="text-align: center;"><img src="{% static 'ballot/img/peter.jpg' %}"></p>
+                    <p style="text-align: center;">Peter Obi (3)</p>
                 </div>
             </div>
         </div>

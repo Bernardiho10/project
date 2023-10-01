@@ -1,5 +1,6 @@
 import time, datetime
 import uuid
+import random
 from Crypto.Signature import DSS
 from Crypto.Hash import SHA3_256
 from Crypto.PublicKey import ECC
@@ -13,10 +14,13 @@ def create(request):
         voter_id = request.POST.get('voter-id-input')
         vote = request.POST.get('vote-input')
         private_key = request.POST.get('private-key-input')
+        nin = request.POST.get('nin')
+        u_ip = request.POST.get('ip_address')
+        u_mac = request.POST.get('mac_address')
 
         # Create ballot as string vector
         timestamp = datetime.datetime.now().timestamp()
-        ballot = "{}|{}|{}".format(voter_id, vote, timestamp)
+        ballot = "{}|{}|{}".format(voter_id, vote, nin, u_ip, u_mac, timestamp )
         print('\ncasted ballot: {}\n'.format(ballot))
         signature = ''
         try:
@@ -44,8 +48,10 @@ def create(request):
             'error': error,
         }
         return render(request, 'ballot/status.html', context)
-
-    context = {'voter_id': uuid.uuid4(), }
+    u_nin = get_nin()
+    u_ip = get_ipaddress()
+    u_mac_address = get_mac_address()
+    context = {'voter_id': uuid.uuid4(), 'nin': u_nin, 'ip_address': u_ip, 'mac_address': u_mac_address  }
     return render(request, 'ballot/create.html', context)
 
 def seal(request):
@@ -78,3 +84,17 @@ def seal(request):
         }
         return render(request, 'ballot/seal.html', context)
     return redirect('ballot:create')
+
+
+def get_ipaddress():
+    random_ipv4 = ".".join(str(random.randint(0, 255)) for _ in range(4))
+    return random_ipv4
+
+
+def get_mac_address():
+    return ':'.join(['{:02x}'.format(random.randint(0, 255)) for _ in range(6)])
+
+
+def get_nin():
+    nin: int = 12345678
+    return nin

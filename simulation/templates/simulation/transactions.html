@@ -33,6 +33,9 @@
                 <th scope="col">#</th>
                 <th scope="col">Voter ID</th>
                 <th scope="col">Vote</th>
+                <th scope="col">Voter NIN</th>
+                <th scope="col">Voter IP</th>
+                <th scope="col">Center Mac Address</th>
                 <th scope="col">Timestamp</th>
                 <th scope="col">Hash</th>
                 <th scope="col">Block</th>
@@ -42,8 +45,11 @@
             {% for ballot, h, bh in votes %}
             <tr>
                 <td>{{ forloop.counter }}</td>
-                <td><code>{{ ballot.id }}</code></th>
+                <td><code>{{ ballot.id }}</code></td>
                 <td>{{ ballot.vote }}</td>
+                <td>{{ ballot.nin }}</td>
+                <td>{{ ballot.ip_address }}</td>
+                <td>{{ ballot.mac_address }}</td>
                 <td>{{ ballot.timestamp|unix_to_date|date:"Y-m-d H:i:s" }}</td>
                 <td title="{{ h }}"><code>{{ h|truncatechars:20 }}</code></td>
                 <td><a class="btn btn-light btn-sm" href="{% url 'simulation:block_detail' block_hash=bh %}" role="button">go to block</a></td>
