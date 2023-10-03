@@ -68,8 +68,11 @@
             <thead>
                 <tr>
                     <th scope="col">#</th>
-                    <th scope="col">Voter ID</th>
+                    <th scope="col">User ID</th>
                     <th scope="col">Cand</th>
+                    <th scope="col">User NIN</th>
+                    <th scope="col">Ip Address</th>
+                    <th scope="col">Mac Address</th>
                     <th scope="col">Timestamp</th>
                     <th scope="col">Hash</th>
                 </tr>
@@ -77,9 +80,12 @@
             <tbody>
                 {% for t, h in transactions %}
                 <tr>
-                    <td>{{ forloop.counter }}</th>
+                    <td>{{ forloop.counter }}</td>
                     <td><code>{{ t.id }}</code></td>
                     <td>{{ t.vote }}</td>
+                    <td>{{ t.nin }}</td>
+                    <td>{{ t.ip_address }}</td>
+                    <td>{{ t.mac_address }}</td>
                     <td>{{ t.timestamp|unix_to_date|date:"Y-m-d H:i:s" }}</td>
                     <td title="{{ h }}"><code>{{ h|truncatechars:32 }}</code></td>
                 </tr>
