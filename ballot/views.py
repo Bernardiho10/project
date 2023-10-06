@@ -17,10 +17,11 @@ def create(request):
         nin = request.POST.get('nin')
         u_ip = request.POST.get('ip_address')
         u_mac = request.POST.get('mac_address')
+        uinec = request.POST.get('inec')
 
         # Create ballot as string vector
         timestamp = datetime.datetime.now().timestamp()
-        ballot = "{}|{}|{}".format(voter_id, vote, nin, u_ip, u_mac, timestamp )
+        ballot = "{}|{}|{}".format(voter_id, vote, nin, uinec, u_ip, u_mac, timestamp )
         print('\ncasted ballot: {}\n'.format(ballot))
         signature = ''
         try:
@@ -51,7 +52,8 @@ def create(request):
     u_nin = get_nin()
     u_ip = get_ipaddress()
     u_mac_address = get_mac_address()
-    context = {'voter_id': uuid.uuid4(), 'nin': u_nin, 'ip_address': u_ip, 'mac_address': u_mac_address  }
+    inec = get_inec()
+    context = {'voter_id': uuid.uuid4(), 'nin': u_nin, 'inec': inec, 'ip_address': u_ip, 'mac_address': u_mac_address }
     return render(request, 'ballot/create.html', context)
 
 def seal(request):
@@ -98,3 +100,7 @@ def get_mac_address():
 def get_nin():
     nin: int = 12345678
     return nin
+
+def get_inec():
+    uinec: int = 3456765
+    return uinec

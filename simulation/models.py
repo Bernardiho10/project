@@ -14,11 +14,12 @@ class Vote(models.Model):
     ip_address = models.GenericIPAddressField(null=True)
     mac_address = models.CharField(max_length=17, null=True)
     nin = models.CharField(max_length=255, null=True)
+    inec = models.CharField(max_length=255, null=True)
     # Not ForeignKey! See transactions() in simulation.views for implications
     block_id = models.IntegerField(null=True)
 
     def __str__(self):
-        return "{}|{}|{}".format(self.id, self.vote, self.nin, self.ip_address, self.mac_address, self.timestamp)
+        return "{}|{}|{}".format(self.id, self.vote, self.nin, self.inec, self.ip_address, self.mac_address, self.timestamp)
 
 class Block(models.Model):
     prev_h = models.CharField(max_length=64, blank=True)
@@ -38,7 +39,8 @@ class VoteBackup(models.Model):
     ip_address = models.GenericIPAddressField(null=True)
     mac_address = models.CharField(max_length=17, null=True)
     nin = models.CharField(max_length=255, null=True)
+    inec = models.CharField(max_length=255, null=True)
     block_id = models.IntegerField(null=True)
 
     def __str__(self):
-        return "{}|{}|{}".format(self.id, self.vote, self.nin, self.ip_address, self.mac_address,  self.timestamp)
+        return "{}|{}|{}".format(self.id, self.vote, self.nin, self.inec, self.ip_address, self.mac_address,  self.timestamp)

@@ -36,9 +36,10 @@ def generate(request):
         v_ip = _get_ipaddress()
         v_mac = _get_mac_address()
         v_nin = _get_nin()
+        v_inec = _get_inec()
         # directly fill the values and the block id for simulation purpose
-        new_vote = Vote(id=v_id, vote=v_cand, nin=v_nin, ip_address=v_ip, mac_address=v_mac, timestamp=v_timestamp, block_id=block_no, )
-        new_backup_vote = VoteBackup(id=v_id, vote=v_cand, nin=v_nin, ip_address=v_ip, mac_address=v_mac, timestamp=v_timestamp, block_id=block_no, )
+        new_vote = Vote(id=v_id, vote=v_cand, nin=v_nin, inec=v_inec, ip_address=v_ip, mac_address=v_mac, timestamp=v_timestamp, block_id=block_no, )
+        new_backup_vote = VoteBackup(id=v_id, vote=v_cand, nin=v_nin, inec=v_inec, ip_address=v_ip, mac_address=v_mac, timestamp=v_timestamp, block_id=block_no, )
         # "Broadcast" to two nodes
         new_vote.save()
         new_backup_vote.save()
@@ -184,7 +185,7 @@ def sync(request):
     print('\nTrying to sync {} transactions with 1 node(s)...\n'.format(deleted_old_votes))
     bk_votes = VoteBackup.objects.all().order_by('timestamp')
     for bk_v in bk_votes:
-        vote = Vote(id=bk_v.id, vote=bk_v.vote, nin=bk_v.nin, ip_address=bk_v.ip_address, mac_address=bk_v.mac_address, timestamp=bk_v.timestamp, block_id=bk_v.block_id)
+        vote = Vote(id=bk_v.id, vote=bk_v.vote, nin=bk_v.nin, inec=bk_v.inec, ip_address=bk_v.ip_address, mac_address=bk_v.mac_address, timestamp=bk_v.timestamp, block_id=bk_v.block_id)
         vote.save()
     print('\nSync complete.\n')
     messages.info(request, 'All blocks have been synced successfully.')
@@ -199,7 +200,7 @@ def sync_block(request, block_id):
     # Then rewrite from backup node
     bak_votes = VoteBackup.objects.filter(block_id=block_id).order_by('timestamp')
     for bv in bak_votes:
-        v = Vote(id=bv.id, vote=bv.vote, nin=bv.nin, ip_address=bv.ip_address, mac_address=bv.mac_address, timestamp=bv.timestamp, block_id=bv.block_id)
+        v = Vote(id=bv.id, vote=bv.vote, nin=bv.nin, inec=bv.inec, ip_address=bv.ip_address, mac_address=bv.mac_address, timestamp=bv.timestamp, block_id=bv.block_id)
         v.save()
     # Just in case, delete transactions without valid block
     block_count = Block.objects.all().count()
@@ -268,3 +269,7 @@ def _get_mac_address():
 def _get_nin():
     nin: int = 12345678
     return nin
+
+def _get_inec():
+    uinec: int = 34527887
+    return uinec
