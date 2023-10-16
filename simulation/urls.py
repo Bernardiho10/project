@@ -13,4 +13,5 @@ urlpatterns = [
     path('verify/', views.verify, name='verify'),
     path('sync/', views.sync, name='sync'),
     path('sync_block/<int:block_id>/', views.sync_block, name='sync_block'),
+    path('export/transactions/csv/', views.export_transactions_to_csv, name='export_transactions_to_csv'),
 ]

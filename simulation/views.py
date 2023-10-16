@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, render, redirect
 
 from .models import Vote, Block, VoteBackup
 from .merkle.merkle_tool import MerkleTools
+import csv
 
 def generate(request):
     """Generate transactions and fill them with valid values."""
@@ -248,6 +249,23 @@ def block_detail(request, block_hash):
     }
 
     return render(request, 'simulation/block.html', context)
+
+def export_transactions_to_csv(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Transaction ID', 'Candidate', 'Timestamp', 'Block ID'])
+
+    transactions = Vote.objects.all()  # Replace this with your query to retrieve the transactions
+
+    for transaction in transactions:
+        writer.writerow([transaction.id, transaction.vote, transaction.timestamp, transaction.block_id])
+
+    return response
+
+
+
 
 # HELPER FUNCTIONS
 def _get_vote():

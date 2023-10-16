@@ -55,6 +55,9 @@
                 <td>{{ ballot.timestamp|unix_to_date|date:"Y-m-d H:i:s" }}</td>
                 <td title="{{ h }}"><code>{{ h|truncatechars:20 }}</code></td>
                 <td><a class="btn btn-light btn-sm" href="{% url 'simulation:block_detail' block_hash=bh %}" role="button">go to block</a></td>
+                <td>
+                    <a href="{% url 'simulation:export_transactions_to_csv' %}" class="btn btn-primary">Export Transactions to CSV</a>
+                </td>
             </tr>
             {% empty %}
                 <p>No record.</p>
