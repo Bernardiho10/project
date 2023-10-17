@@ -255,12 +255,12 @@ def export_transactions_to_csv(request):
     response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['Transaction ID', 'Candidate', 'Timestamp', 'Block ID'])
+    writer.writerow(['Transaction ID', 'Vote', 'NIN', 'Ip Address', 'INEC', 'Center Mac Address',   'Timestamp', 'Block ID'])
 
     transactions = Vote.objects.all()  # Replace this with your query to retrieve the transactions
 
     for transaction in transactions:
-        writer.writerow([transaction.id, transaction.vote, transaction.timestamp, transaction.block_id])
+        writer.writerow([transaction.id, transaction.vote, transaction.nin, transaction.ip_address, transaction.inec, transaction.mac_address, transaction.timestamp, transaction.block_id])
 
     return response
 
@@ -285,9 +285,7 @@ def _get_mac_address():
 
 
 def _get_nin():
-    nin: int = 12345678
-    return nin
+    return randint(10**8, 10**9 - 1)
 
 def _get_inec():
-    uinec: int = 34527887
-    return uinec
+    return randint(10**8, 10**9 - 1)
