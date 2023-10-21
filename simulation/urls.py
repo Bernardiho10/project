@@ -3,7 +3,7 @@ from . import views
 
 app_name = 'simulation'
 urlpatterns = [
-    path('generate/', views.generate, name='generate'),
+    path('generate/', views.generate_users_from_excel, name='generate_users_from_excel'),
     path('seal/', views.seal, name='seal'),
     path('transactions/', views.transactions, name='transactions'),
     path('blockchain/', views.blockchain, name='blockchain'),

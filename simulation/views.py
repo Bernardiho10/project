@@ -1,5 +1,9 @@
 import datetime, time, json, math
+import os
 import random
+import pandas as pd
+import random
+from faker import Faker
 from random import randint
 from uuid import uuid4
 from Crypto.Hash import SHA3_256
@@ -13,50 +17,93 @@ from .models import Vote, Block, VoteBackup
 from .merkle.merkle_tool import MerkleTools
 import csv
 
-def generate(request):
-    """Generate transactions and fill them with valid values."""
-    number_of_transactions = settings.N_TRANSACTIONS
-    number_of_tx_per_block = settings.N_TX_PER_BLOCK
 
-    # Delete all data from previous demo.
+
+
+def generate_users_from_excel(request):
+    # Read the historical voting data from the Excel file
+    excel_file = os.path.join(os.path.dirname(__file__), 'kaggle-DataCleaned-2015elections.xls')  # Provide the path to your Excel file
+    df = pd.read_excel(excel_file)
+
+    # Delete all data from the previous demo.
     deleted_old_votes = Vote.objects.all().delete()[0]
     VoteBackup.objects.all().delete()
-    print('\nDeleted {} data from previous simulation.\n'.format(deleted_old_votes))
-    # Delete all blocks from previous demo.
-    deleted_old_blocks = Block.objects.all().delete()[0]
-    print("\nDeleted {} blocks from previous simulation.\n".format(deleted_old_blocks))
-    
-    # Generate transactions.
+    print(f'\nDeleted {deleted_old_votes} data from the previous simulation.\n')
+
+    # Initialize counters for APC and PDP votes
+    apc_votes_total = 0
+    pdp_votes_total = 0
+
+    # Generate users based on historical data
     time_start = time.time()
     block_no = 1
-    for i in range(1, number_of_transactions + 1):
-        # generate random, valid values
-        v_id = str(uuid4())
-        v_cand = _get_vote()
-        v_timestamp = _get_timestamp()
-        v_ip = _get_ipaddress()
-        v_mac = _get_mac_address()
-        v_nin = _get_nin()
-        v_inec = _get_inec()
-        # directly fill the values and the block id for simulation purpose
-        new_vote = Vote(id=v_id, vote=v_cand, nin=v_nin, inec=v_inec, ip_address=v_ip, mac_address=v_mac, timestamp=v_timestamp, block_id=block_no, )
-        new_backup_vote = VoteBackup(id=v_id, vote=v_cand, nin=v_nin, inec=v_inec, ip_address=v_ip, mac_address=v_mac, timestamp=v_timestamp, block_id=block_no, )
-        # "Broadcast" to two nodes
-        new_vote.save()
-        new_backup_vote.save()
-        print("#{} new vote: {}".format(i, new_vote)) # for sanity
-        if i % number_of_tx_per_block == 0:
-            block_no += 1
+    for index, row in df.iterrows():
+        state = row['State']
+        apc_votes = row['APC Votes']
+        pdp_votes = row['PDP Votes']
+
+        for _ in range(apc_votes):
+            generate_user(state, 2, block_no)  # 2 represents APC
+            apc_votes_total += 1
+        for _ in range(pdp_votes):
+            generate_user(state, 1, block_no)  # 1 represents PDP
+            pdp_votes_total += 1
+
+        block_no += 1
+
     time_end = time.time()
-    print('\nFinished in {} seconds.\n'.format(time_end - time_start))
+    print(f'\nFinished in {(time_end - time_start)} seconds.\n')
+    print(f'Total APC Votes Created: {apc_votes_total}')
+    print(f'Total PDP Votes Created: {pdp_votes_total}')
 
     # View the generated transactions
-    votes = Vote.objects.order_by('-timestamp')[:100] # only shows the last 100, if any
+    votes = Vote.objects.order_by('-timestamp')[:100]  # Only shows the last 100, if any
     context = {
         'votes': votes,
     }
     request.session['transactions_done'] = True
     return render(request, 'simulation/generate.html', context)
+
+
+
+def generate_user(state, vote, block_no):
+    v_id = str(uuid4())
+    v_timestamp = _get_timestamp()
+    v_ip = _get_ipaddress()
+    v_mac = _get_mac_address()
+    v_nin = _get_nin()
+    v_inec = _get_inec()
+
+    new_vote = Vote(
+        id=v_id,
+        vote=vote,
+        state=state,
+        nin=v_nin,
+        inec=v_inec,
+        ip_address=v_ip,
+        mac_address=v_mac,
+        timestamp=v_timestamp,
+        block_id=block_no,
+    )
+    new_backup_vote = VoteBackup(
+        id=v_id,
+        vote=vote,
+        state=state,
+        nin=v_nin,
+        inec=v_inec,
+        ip_address=v_ip,
+        mac_address=v_mac,
+        timestamp=v_timestamp,
+        block_id=block_no,
+    )
+
+    # "Broadcast" to two nodes
+    new_vote.save()
+    new_backup_vote.save()
+    print(f"Generated user for {state} - Vote: {vote}, Block: {block_no}")
+
+    return new_vote
+
 
 def seal(request):
     """Seal the transactions generated previously."""
@@ -186,7 +233,7 @@ def sync(request):
     print('\nTrying to sync {} transactions with 1 node(s)...\n'.format(deleted_old_votes))
     bk_votes = VoteBackup.objects.all().order_by('timestamp')
     for bk_v in bk_votes:
-        vote = Vote(id=bk_v.id, vote=bk_v.vote, nin=bk_v.nin, inec=bk_v.inec, ip_address=bk_v.ip_address, mac_address=bk_v.mac_address, timestamp=bk_v.timestamp, block_id=bk_v.block_id)
+        vote = Vote(id=bk_v.id, state=bk_v.state, vote=bk_v.vote, nin=bk_v.nin, inec=bk_v.inec, ip_address=bk_v.ip_address, mac_address=bk_v.mac_address, timestamp=bk_v.timestamp, block_id=bk_v.block_id)
         vote.save()
     print('\nSync complete.\n')
     messages.info(request, 'All blocks have been synced successfully.')
@@ -201,7 +248,7 @@ def sync_block(request, block_id):
     # Then rewrite from backup node
     bak_votes = VoteBackup.objects.filter(block_id=block_id).order_by('timestamp')
     for bv in bak_votes:
-        v = Vote(id=bv.id, vote=bv.vote, nin=bv.nin, inec=bv.inec, ip_address=bv.ip_address, mac_address=bv.mac_address, timestamp=bv.timestamp, block_id=bv.block_id)
+        v = Vote(id=bv.id, state=bv.state, vote=bv.vote, nin=bv.nin, inec=bv.inec, ip_address=bv.ip_address, mac_address=bv.mac_address, timestamp=bv.timestamp, block_id=bv.block_id)
         v.save()
     # Just in case, delete transactions without valid block
     block_count = Block.objects.all().count()
@@ -255,12 +302,12 @@ def export_transactions_to_csv(request):
     response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['Transaction ID', 'Vote', 'NIN', 'Ip Address', 'INEC', 'Center Mac Address',   'Timestamp', 'Block ID'])
+    writer.writerow(['Transaction ID', 'Vote', 'State', 'NIN', 'Ip Address', 'INEC', 'Center Mac Address',   'Timestamp', 'Block ID'])
 
     transactions = Vote.objects.all()  # Replace this with your query to retrieve the transactions
 
     for transaction in transactions:
-        writer.writerow([transaction.id, transaction.vote, transaction.nin, transaction.ip_address, transaction.inec, transaction.mac_address, transaction.timestamp, transaction.block_id])
+        writer.writerow([transaction.id, transaction.vote, transaction.state, transaction.nin, transaction.ip_address, transaction.inec, transaction.mac_address, transaction.timestamp, transaction.block_id])
 
     return response
 
