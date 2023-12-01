@@ -12,18 +12,20 @@ from django.conf import settings
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render, redirect
-
+from datetime import timedelta
 from .models import Vote, Block, VoteBackup
 from .merkle.merkle_tool import MerkleTools
 import csv
 
 
-
-
 def generate_users_from_excel(request):
     # Read the historical voting data from the Excel file
-    excel_file = os.path.join(os.path.dirname(__file__), 'kaggle-DataCleaned-2015elections.xls')  # Provide the path to your Excel file
+    excel_file = os.path.join(os.path.dirname(__file__),
+                              'kaggle-DataCleaned-2015elections.xls')  # Provide the path to your Excel file
     df = pd.read_excel(excel_file)
+
+    # Shuffle DataFrame Rows
+    df = df.sample(frac=1).reset_index(drop=True)
 
     # Delete all data from the previous demo.
     deleted_old_votes = Vote.objects.all().delete()[0]
@@ -37,17 +39,28 @@ def generate_users_from_excel(request):
     # Generate users based on historical data
     time_start = time.time()
     block_no = 1
+    current_time = time.time()
+
     for index, row in df.iterrows():
         state = row['State']
         apc_votes = row['APC Votes']
         pdp_votes = row['PDP Votes']
 
-        for _ in range(apc_votes):
-            generate_user(state, 2, block_no)  # 2 represents APC
-            apc_votes_total += 1
-        for _ in range(pdp_votes):
-            generate_user(state, 1, block_no)  # 1 represents PDP
-            pdp_votes_total += 1
+        # Randomize Voting Order within Each State
+        votes = ['APC'] * apc_votes + ['PDP'] * pdp_votes
+        random.shuffle(votes)
+
+        for vote in votes:
+            # Introduce some randomness in timestamps (realistic time window)
+            timestamp = current_time - random.uniform(0, 60 * 60 * 3)
+            formatted_time = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+            generate_user(state, 2 if vote == 'APC' else 1, block_no, formatted_time)
+
+            if vote == 'APC':
+                apc_votes_total += 1
+            else:
+                pdp_votes_total += 1
 
         block_no += 1
 
@@ -66,9 +79,12 @@ def generate_users_from_excel(request):
 
 
 
-def generate_user(state, vote, block_no):
+
+def generate_user(state, vote, block_no, timestamp=None):
+    if timestamp is None:
+        timestamp = _get_timestamp()
+
     v_id = str(uuid4())
-    v_timestamp = _get_timestamp()
     v_ip = _get_ipaddress()
     v_mac = _get_mac_address()
     v_nin = _get_nin()
@@ -82,7 +98,7 @@ def generate_user(state, vote, block_no):
         inec=v_inec,
         ip_address=v_ip,
         mac_address=v_mac,
-        timestamp=v_timestamp,
+        timestamp=timestamp,
         block_id=block_no,
     )
     new_backup_vote = VoteBackup(
@@ -93,14 +109,14 @@ def generate_user(state, vote, block_no):
         inec=v_inec,
         ip_address=v_ip,
         mac_address=v_mac,
-        timestamp=v_timestamp,
+        timestamp=timestamp,
         block_id=block_no,
     )
 
     # "Broadcast" to two nodes
     new_vote.save()
     new_backup_vote.save()
-    print(f"Generated user for {state} - Vote: {vote}, Block: {block_no}")
+    print(f"Generated user for {state} - Vote: {vote}, Block: {block_no}, Timestamp: {timestamp}")
 
     return new_vote
 
