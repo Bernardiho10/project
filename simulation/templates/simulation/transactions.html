@@ -52,7 +52,7 @@
                  <td>{{ ballot.inec }}</td>
                 <td>{{ ballot.ip_address }}</td>
                 <td>{{ ballot.mac_address }}</td>
-                <td>{{ ballot.timestamp|unix_to_date|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ ballot.timestamp }}</td>
                 <td title="{{ h }}"><code>{{ h|truncatechars:20 }}</code></td>
                 <td><a class="btn btn-light btn-sm" href="{% url 'simulation:block_detail' block_hash=bh %}" role="button">go to block</a></td>
 

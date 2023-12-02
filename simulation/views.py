@@ -62,6 +62,9 @@ def generate_users_from_excel(request):
             else:
                 pdp_votes_total += 1
 
+            #  Introduce a delay between generating each user
+            time.sleep(0.3)
+
         block_no += 1
 
     time_end = time.time()
