@@ -9,7 +9,7 @@ def get_timestamp():
 
 class Vote(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    vote = models.IntegerField(default=get_vote)
+    vote = models.CharField(max_length=5)
     timestamp = models.CharField(max_length=100)
     ip_address = models.GenericIPAddressField(null=True)
     mac_address = models.CharField(max_length=17, null=True)
@@ -35,7 +35,7 @@ class Block(models.Model):
 class VoteBackup(models.Model):
     """This model acts as backup; its objects shall never be tampered."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    vote = models.IntegerField(default=get_vote)
+    vote = models.CharField(max_length=5)
     timestamp = models.CharField(max_length=100)
     ip_address = models.GenericIPAddressField(null=True)
     mac_address = models.CharField(max_length=17, null=True)

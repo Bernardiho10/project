@@ -55,7 +55,7 @@ def generate_users_from_excel(request):
             timestamp = current_time - random.uniform(0, 60 * 60 * 3)
             formatted_time = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
-            generate_user(state, 2 if vote == 'APC' else 1, block_no, formatted_time)
+            generate_user(state, 'PDP' if vote == 'APC' else 'APC', block_no, formatted_time)
 
             if vote == 'APC':
                 apc_votes_total += 1
@@ -85,11 +85,31 @@ def generate_users_from_excel(request):
 
 def generate_user(state, vote, block_no, timestamp=None):
     if timestamp is None:
-        timestamp = _get_timestamp()
+        timestamp = round(_get_timestamp())
 
     v_id = str(uuid4())
     v_ip = _get_ipaddress()
-    v_mac = _get_mac_address()
+
+    # Read the MAC address Excel file
+    excel_file = 'nigeria_mac_addy.xls'
+    df = pd.read_excel(excel_file)
+
+    # Normalize the state names in the column headers
+    df.columns = df.columns.str.strip().str.lower()
+
+    # Check if the state exists in the DataFrame columns
+    if state.lower() in df.columns:
+        # Select the column for the state and drop any NaN values
+        state_column = df[state.lower()].dropna()
+
+        # Randomly select a MAC address if the column is not empty
+        v_mac = random.choice(state_column.tolist()) if not state_column.empty else None
+    else:
+        # Handle invalid state
+        print("Error: State Not found!")
+        v_mac = None
+
+
     v_nin = _get_nin()
     v_inec = _get_inec()
 
@@ -143,7 +163,7 @@ def seal(request):
         root.add_leaf([str(tx) for tx in block_transactions], True)
         root.make_tree()
         merkle_h = root.get_merkle_root()
-        
+
         # Try to seal the block and generate valid hash
         nonce = 0
         timestamp = datetime.datetime.now().timestamp()
@@ -175,7 +195,7 @@ def transactions(request):
     votes = paginator.get_page(page)
 
     hashes = [SHA3_256.new(str(v).encode('utf-8')).hexdigest() for v in votes]
-    
+
     # This happens if you don't use foreign key
     block_hashes = []
     for i in range(0, len(votes)):
@@ -185,11 +205,11 @@ def transactions(request):
         except:
             h = 404
         block_hashes.append(h)
-    
+
     # zip the three iters
     votes_pg = votes # for pagination
     votes = zip(votes, hashes, block_hashes)
-    
+
     # Calculate the voting result of 3 cands, the ugly way
     result = []
     for i in range(0, 3):
@@ -224,7 +244,7 @@ def verify(request):
     for i in range(1, number_of_blocks + 1):
         # Select block #i
         b = Block.objects.get(id=i)
-        
+
         # Select all transactions in block #i
         transactions = Vote.objects.filter(block_id=i).order_by('timestamp')
 
@@ -233,7 +253,7 @@ def verify(request):
         root.add_leaf([str(tx) for tx in transactions], True)
         root.make_tree()
         merkle_h = root.get_merkle_root()
-        
+
         if b.merkle_h == merkle_h:
             message = 'Block {} verified.'.format(i)
         else:
@@ -288,17 +308,17 @@ def block_detail(request, block_hash):
     page = request.GET.get('page')
     transactions = paginator.get_page(page)
     transactions_hashes = [SHA3_256.new(str(t).encode('utf-8')).hexdigest() for t in transactions]
-    
+
     # Check the integrity of transactions
     root = MerkleTools()
     root.add_leaf([str(tx) for tx in transaction_list], True)
     root.make_tree()
     merkle_h = root.get_merkle_root()
     tampered = block.merkle_h != merkle_h
-    
+
     transactions_pg = transactions # for pagination
     transactions = zip(transactions, transactions_hashes)
-    
+
     # Get prev and next block id
     prev_block = Block.objects.filter(id=block.id - 1).first()
     next_block = Block.objects.filter(id=block.id + 1).first()
@@ -316,20 +336,49 @@ def block_detail(request, block_hash):
 
     return render(request, 'simulation/block.html', context)
 
+
 def export_transactions_to_csv(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['Transaction ID', 'Vote', 'State', 'NIN', 'Ip Address', 'INEC', 'Center Mac Address',   'Timestamp', 'Block ID'])
 
-    transactions = Vote.objects.all()  # Replace this with your query to retrieve the transactions
+    # Read Excel file and convert relevant columns to integers
+    excel_file = os.path.join(os.path.dirname(__file__),
+                              'kaggle-DataCleaned-2015elections.xls')
+    df = pd.read_excel(excel_file)
+    df['Accredited Voters'] = df['Accredited Voters'].astype(int)
+    df['Votes cast'] = df['Votes cast'].astype(int)
+    df['Valid votes'] = df['Valid votes'].astype(int)
+    df['Rejected votes'] = df['Rejected votes'].astype(int)
 
+    # Calculate global sums
+    accredited_voters_sum = df['Accredited Voters'].sum()
+    votes_cast_sum = df['Votes cast'].sum()
+    valid_votes_sum = df['Valid votes'].sum()
+    rejected_votes_sum = df['Rejected votes'].sum()
+
+    # Write headers for transactions and sums
+    writer.writerow(['Transaction ID', 'Vote', 'State', 'NIN', 'Ip Address',
+                     'INEC', 'Center Mac Address', 'Timestamp', 'Block ID',
+                     'Accredited Voters', 'Votes Cast', 'Valid Votes', 'Rejected Votes'])
+
+    # Get transactions from database
+    transactions = Vote.objects.all()
+
+    # Write each transaction without sums
     for transaction in transactions:
-        writer.writerow([transaction.id, transaction.vote, transaction.state, transaction.nin, transaction.ip_address, transaction.inec, transaction.mac_address, transaction.timestamp, transaction.block_id])
+        writer.writerow([transaction.id, transaction.vote, transaction.state,
+                         transaction.nin, transaction.ip_address, transaction.inec,
+                         transaction.mac_address, transaction.timestamp,
+                         transaction.block_id, '', '', '', ''])
+
+    # Write first row with sums
+    writer.writerow(['', '', '', '', '', '', '', '', '',
+                     accredited_voters_sum, votes_cast_sum,
+                     valid_votes_sum, rejected_votes_sum])
 
     return response
-
 
 
 

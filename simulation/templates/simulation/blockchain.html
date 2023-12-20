@@ -33,7 +33,7 @@
                 <td title="{{ block.h }}"><code>{{ block.h|truncatechars:30 }}</code></td>
                 <td title="{{ block.merkle_h }}"><code>{{ block.merkle_h|truncatechars:30 }}</code></td>
                 <td>{{ block.nonce }}</td>
-                <td>{{ block.timestamp|unix_to_date|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ block.timestamp }}</td>
             </tr>
             {% empty %}
                 <p>No record.</p>
