@@ -45,17 +45,27 @@ def generate_users_from_excel(request):
         state = row['State']
         apc_votes = row['APC Votes']
         pdp_votes = row['PDP Votes']
+        total_votes = row['Votes cast']
+        valid_votes = row['Valid votes']
+        rejected_votes = row['Rejected votes']
 
-        # Randomize Voting Order within Each State
-        votes = ['APC'] * apc_votes + ['PDP'] * pdp_votes
+        # Determine the number of valid and rejected votes for APC and PDP
+        valid_apc_votes = int((apc_votes / total_votes) * valid_votes)
+        valid_pdp_votes = int((pdp_votes / total_votes) * valid_votes)
+        rejected_apc_votes = apc_votes - valid_apc_votes
+        rejected_pdp_votes = pdp_votes - valid_pdp_votes
+
+        # Create a list of votes with status
+        votes = [('APC', 'valid')] * valid_apc_votes + [('PDP', 'valid')] * valid_pdp_votes + \
+                [('APC', 'rejected')] * rejected_apc_votes + [('PDP', 'rejected')] * rejected_pdp_votes
         random.shuffle(votes)
 
-        for vote in votes:
+        for vote, status in votes:
             # Introduce some randomness in timestamps (realistic time window)
             timestamp = current_time - random.uniform(0, 60 * 60 * 3)
             formatted_time = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
-            generate_user(state, 'PDP' if vote == 'APC' else 'APC', block_no, formatted_time)
+            generate_user(state, 'PDP' if vote == 'APC' else 'APC', block_no, formatted_time, status)
 
             if vote == 'APC':
                 apc_votes_total += 1
@@ -83,7 +93,7 @@ def generate_users_from_excel(request):
 
 
 
-def generate_user(state, vote, block_no, timestamp=None):
+def generate_user(state, vote, block_no, timestamp, vote_status):
     if timestamp is None:
         timestamp = round(_get_timestamp())
 
@@ -121,6 +131,7 @@ def generate_user(state, vote, block_no, timestamp=None):
         inec=v_inec,
         ip_address=v_ip,
         mac_address=v_mac,
+        status=vote_status,
         timestamp=timestamp,
         block_id=block_no,
     )
@@ -132,6 +143,7 @@ def generate_user(state, vote, block_no, timestamp=None):
         inec=v_inec,
         ip_address=v_ip,
         mac_address=v_mac,
+        status=vote_status,
         timestamp=timestamp,
         block_id=block_no,
     )
@@ -361,7 +373,7 @@ def export_transactions_to_csv(request):
     # Write headers for transactions and sums
     writer.writerow(['Transaction ID', 'Vote', 'State', 'NIN', 'Ip Address',
                      'INEC', 'Center Mac Address', 'Timestamp', 'Block ID',
-                     'Accredited Voters', 'Votes Cast', 'Valid Votes', 'Rejected Votes'])
+                     'Vote Status','Accredited Voters', 'Votes Cast', 'Valid Votes', 'Rejected Votes'])
 
     # Get transactions from database
     transactions = Vote.objects.all()
@@ -371,11 +383,12 @@ def export_transactions_to_csv(request):
         writer.writerow([transaction.id, transaction.vote, transaction.state,
                          transaction.nin, transaction.ip_address, transaction.inec,
                          transaction.mac_address, transaction.timestamp,
-                         transaction.block_id, '', '', '', ''])
+                         transaction.block_id, transaction.status,
+                         '', '', '', ''])
 
     # Write first row with sums
     writer.writerow(['', '', '', '', '', '', '', '', '',
-                     accredited_voters_sum, votes_cast_sum,
+                     '',accredited_voters_sum, votes_cast_sum,
                      valid_votes_sum, rejected_votes_sum])
 
     return response
