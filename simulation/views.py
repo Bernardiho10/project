@@ -65,7 +65,7 @@ def generate_users_from_excel(request):
             timestamp = current_time - random.uniform(0, 60 * 60 * 3)
             formatted_time = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
-            generate_user(state, 'PDP' if vote == 'APC' else 'APC', block_no, formatted_time, status)
+            generate_user(state, 1 if vote == 'APC' else 2, block_no, formatted_time, status)
 
             if vote == 'APC':
                 apc_votes_total += 1
@@ -99,6 +99,7 @@ def generate_user(state, vote, block_no, timestamp, vote_status):
 
     v_id = str(uuid4())
     v_ip = _get_ipaddress()
+
 
     # Read the MAC address Excel file
     excel_file = 'nigeria_mac_addy.xls'
@@ -284,7 +285,7 @@ def sync(request):
     print('\nTrying to sync {} transactions with 1 node(s)...\n'.format(deleted_old_votes))
     bk_votes = VoteBackup.objects.all().order_by('timestamp')
     for bk_v in bk_votes:
-        vote = Vote(id=bk_v.id, state=bk_v.state, vote=bk_v.vote, nin=bk_v.nin, inec=bk_v.inec, ip_address=bk_v.ip_address, mac_address=bk_v.mac_address, timestamp=bk_v.timestamp, block_id=bk_v.block_id)
+        vote = Vote(id=bk_v.id, state=bk_v.state, vote=bk_v.vote, nin=bk_v.nin, inec=bk_v.inec, ip_address=bk_v.ip_address,  mac_address=bk_v.mac_address, timestamp=bk_v.timestamp, block_id=bk_v.block_id)
         vote.save()
     print('\nSync complete.\n')
     messages.info(request, 'All blocks have been synced successfully.')
@@ -299,7 +300,7 @@ def sync_block(request, block_id):
     # Then rewrite from backup node
     bak_votes = VoteBackup.objects.filter(block_id=block_id).order_by('timestamp')
     for bv in bak_votes:
-        v = Vote(id=bv.id, state=bv.state, vote=bv.vote, nin=bv.nin, inec=bv.inec, ip_address=bv.ip_address, mac_address=bv.mac_address, timestamp=bv.timestamp, block_id=bv.block_id)
+        v = Vote(id=bv.id, state=bv.state, vote=bv.vote, nin=bv.nin, inec=bv.inec, ip_address=bv.ip_address, geographic_region=bv.geographic_region, mac_address=bv.mac_address, timestamp=bv.timestamp, block_id=bv.block_id)
         v.save()
     # Just in case, delete transactions without valid block
     block_count = Block.objects.all().count()
@@ -373,25 +374,54 @@ def export_transactions_to_csv(request):
     # Write headers for transactions and sums
     writer.writerow(['Transaction ID', 'Vote', 'State', 'NIN', 'Ip Address',
                      'INEC', 'Center Mac Address', 'Timestamp', 'Block ID',
-                     'Vote Status','Accredited Voters', 'Votes Cast', 'Valid Votes', 'Rejected Votes'])
+                     'Vote Status', 'Gender', 'Occupation', 'Age', 'Accredited Voters', 'Votes Cast', 'Valid Votes',
+                     'Rejected Votes'])
 
-    # Get transactions from database
+    accredited_voters = df['Accredited Voters'].sum()
+    female_percentage = 0.53
+    male_percentage = 1 - female_percentage
+
+    occupations = {
+        'Student': 0.2657,
+        'Farming and fishing': 0.1623,
+        'Housewives': 0.141,
+        'Business sector': 0.1287,
+        'Traders': 0.0901,
+        'Uncategorised': 0.0717,
+        'Civil servants': 0.06,
+        'Artisans': 0.0533,
+        'Public servants': 0.0273
+    }
+
+    age_groups = {
+        '18-35': 0.511,
+        '36-50': 0.299,
+        '51+': 0.19
+    }
+
+
     transactions = Vote.objects.all()
 
-    # Write each transaction without sums
     for transaction in transactions:
+        gender = 'Female' if random.random() < female_percentage else 'Male'
+
+        occupation = random.choices(list(occupations.keys()), weights=list(occupations.values()))[0]
+
+        age_group = random.choices(list(age_groups.keys()), weights=list(age_groups.values()))[0]
+
         writer.writerow([transaction.id, transaction.vote, transaction.state,
                          transaction.nin, transaction.ip_address, transaction.inec,
                          transaction.mac_address, transaction.timestamp,
-                         transaction.block_id, transaction.status,
+                         transaction.block_id, transaction.status, gender, occupation, age_group,
                          '', '', '', ''])
-
     # Write first row with sums
     writer.writerow(['', '', '', '', '', '', '', '', '',
-                     '',accredited_voters_sum, votes_cast_sum,
-                     valid_votes_sum, rejected_votes_sum])
+                         '', '', '', '', accredited_voters_sum, votes_cast_sum,
+                         valid_votes_sum, rejected_votes_sum])
 
     return response
+
+
 
 
 
