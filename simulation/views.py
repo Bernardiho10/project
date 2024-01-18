@@ -407,7 +407,12 @@ def export_transactions_to_csv(request):
 
         occupation = random.choices(list(occupations.keys()), weights=list(occupations.values()))[0]
 
-        age_group = random.choices(list(age_groups.keys()), weights=list(age_groups.values()))[0]
+        if random.random() < 0.511:
+            age = random.randint(18, 35)
+        elif random.random() < 0.811:
+            age = random.randint(36, 50)
+        else:
+            age = random.randint(51, 100)
 
         writer.writerow([transaction.id, transaction.vote, transaction.state,
                          transaction.nin, transaction.ip_address, transaction.inec,
