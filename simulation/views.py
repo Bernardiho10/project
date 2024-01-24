@@ -349,6 +349,45 @@ def block_detail(request, block_hash):
 
     return render(request, 'simulation/block.html', context)
 
+nigerian_geographical_zones = {
+    'Abia': 'South East',
+    'Adamawa': 'North East',
+    'Akwa Ibom': 'South South',
+    'Anambra': 'South East',
+    'Bauchi': 'North East',
+    'Bayelsa': 'South South',
+    'Benue': 'North Central',
+    'Borno': 'North East',
+    'Cross River': 'South South',
+    'Delta': 'South South',
+    'Ebonyi': 'South East',
+    'Edo': 'South South',
+    'Ekiti': 'South West',
+    'Enugu': 'South East',
+    'Gombe': 'North East',
+    'Imo': 'South East',
+    'Jigawa': 'North West',
+    'Kaduna': 'North West',
+    'Kano': 'North West',
+    'Katsina': 'North West',
+    'Kebbi': 'North West',
+    'Kogi': 'North Central',
+    'Kwara': 'North Central',
+    'Lagos': 'South West',
+    'Nasarawa': 'North Central',
+    'Niger': 'North Central',
+    'Ogun': 'South West',
+    'Ondo': 'South West',
+    'Osun': 'South West',
+    'Oyo': 'South West',
+    'Plateau': 'North Central',
+    'Rivers': 'South South',
+    'Sokoto': 'North West',
+    'Taraba': 'North East',
+    'Yobe': 'North East',
+    'Zamfara': 'North West',
+    'FCT': 'North Central'
+}
 
 def export_transactions_to_csv(request):
     response = HttpResponse(content_type='text/csv')
@@ -374,7 +413,7 @@ def export_transactions_to_csv(request):
     # Write headers for transactions and sums
     writer.writerow(['Transaction ID', 'Vote', 'State', 'NIN', 'Ip Address',
                      'INEC', 'Center Mac Address', 'Timestamp', 'Block ID',
-                     'Vote Status', 'Gender', 'Occupation', 'Age', 'Accredited Voters', 'Votes Cast', 'Valid Votes',
+                     'Vote Status', 'Gender', 'Occupation', 'Age', 'Geographical Zones', 'Accredited Voters', 'Votes Cast', 'Valid Votes',
                      'Rejected Votes'])
 
     accredited_voters = df['Accredited Voters'].sum()
@@ -414,14 +453,18 @@ def export_transactions_to_csv(request):
         else:
             age_group = random.randint(51, 100)
 
+        geographical_zone = nigerian_geographical_zones.get(transaction.state, 'Unknown')
+
         writer.writerow([transaction.id, transaction.vote, transaction.state,
                          transaction.nin, transaction.ip_address, transaction.inec,
                          transaction.mac_address, transaction.timestamp,
                          transaction.block_id, transaction.status, gender, occupation, age_group,
+                         geographical_zone,  # New column data
                          '', '', '', ''])
+
     # Write first row with sums
     writer.writerow(['', '', '', '', '', '', '', '', '',
-                         '', '', '', '', accredited_voters_sum, votes_cast_sum,
+                         '', '', '', '', '', accredited_voters_sum, votes_cast_sum,
                          valid_votes_sum, rejected_votes_sum])
 
     return response

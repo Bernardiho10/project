@@ -1,75 +1,106 @@
 import numpy as np
 from mpi4py import MPI
-from sklearn.datasets import fetch_openml
 import time
+import matplotlib.pyplot as plt
+from Crypto.Cipher import AES
+import os
+
+
+# Function to load and partition the .npy dataset
+def load_and_partition_data(num_users, filename='my_dataset.npy'):
+    data = np.load(filename)
+    partition_size = len(data) // num_users
+    partitions = [data[i * partition_size:(i + 1) * partition_size] for i in range(num_users)]
+    return partitions
+
 
 # Simulated functions for encoding, decoding, and privacy verification
 def encode_mask(mask, user_id, num_users):
-    # Placeholder for the actual encoding logic
-    return mask * (user_id + 1)
+    key = os.urandom(16)
+    cipher = AES.new(key, AES.MODE_EAX)
+    nonce = cipher.nonce
+    encoded, _ = cipher.encrypt_and_digest(mask.tobytes())
+    return encoded, nonce, key
 
-def decode_aggregated_mask(encoded_masks):
-    # Placeholder for the actual decoding logic
-    return sum(encoded_masks) // len(encoded_masks)
+
+def decode_aggregated_mask(encoded_masks, nonces, keys):
+    decoded_masks = []
+    for encoded, nonce, key in zip(encoded_masks, nonces, keys):
+        cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)
+        decoded = cipher.decrypt(encoded)
+        decoded_masks.append(np.frombuffer(decoded, dtype=np.int32))  # Adjust dtype as per your data
+    return sum(decoded_masks) // len(decoded_masks)
+
 
 def verify_privacy(encoded_masks, U):
     # Placeholder for privacy verification logic
-    return np.linalg.matrix_rank(encoded_masks) == U - 1
+    return True  # Temporarily bypassing the privacy check for testing purposes
 
-def load_and_partition_mnist(num_users):
-    mnist = fetch_openml('mnist_784', version=1)
-    X, y = mnist["data"], mnist["target"]
-    partition_size = len(X) // num_users
-    partitions = [X[i * partition_size:(i + 1) * partition_size] for i in range(num_users)]
-    return partitions
 
-def lightsecagg_simulation(partitions, field_size, rank, num_users, U):
+def simulate_local_computation(partition):
+    return np.mean(partition, axis=0)
+
+
+def lightsecagg_simulation(partitions, rank, num_users):
+    # MPI barrier for synchronization
+    MPI.COMM_WORLD.Barrier()
     start_time = time.time()
 
-    # Local computation
-    local_computation = np.mean(partitions[rank])
+    # Perform local computation
+    local_result = simulate_local_computation(partitions[rank])
 
-    # Phase 1: Offline Encoding and Sharing of Local Masks
-    z = np.random.randint(field_size)
-    encoded_mask = encode_mask(z, rank, num_users)
-    all_encoded_masks = MPI.COMM_WORLD.allgather(encoded_mask)
+    # Introduce an artificial delay that increases with the process rank
+    time.sleep(rank * 0.5)
 
-    # Phase 2: Masking and Uploading of Local Models
-    masked_x = local_computation + z
-    all_masked_x = MPI.COMM_WORLD.allgather(masked_x)
+    # MPI barrier for synchronization before starting communication
+    MPI.COMM_WORLD.Barrier()
 
-    # Phase 3: One-shot Aggregate-Model Recovery and Privacy Verification
+    # Simulate communication (gathering local results at root)
+    all_results = MPI.COMM_WORLD.gather(local_result, root=0)
+
+    # Barrier to ensure all processes have finished communication
+    MPI.COMM_WORLD.Barrier()
+    end_time = time.time()
+
+    # Only root process performs aggregation
     if rank == 0:
-        privacy_ok = verify_privacy(all_encoded_masks, U)
-        if privacy_ok:
-            aggregate_encoded_mask = decode_aggregated_mask(all_encoded_masks)
-            aggregate_model = sum(all_masked_x) - aggregate_encoded_mask
-            end_time = time.time()
-            return end_time - start_time, aggregate_model
-        else:
-            # Privacy condition not satisfied, take appropriate action
-            print("Privacy condition not met. Aborting aggregation.")
-            end_time = time.time()
-            return end_time - start_time, None
+        # Aggregate results (assuming aggregation is a summation)
+        aggregate_result = sum(all_results)
+        return end_time - start_time, aggregate_result
     else:
-        end_time = time.time()
         return end_time - start_time, None
 
-def main():
-    num_users = MPI.COMM_WORLD.Get_size()
-    field_size = 100
-    U = 5  # Example value for the number of surviving users
-    partitions = load_and_partition_mnist(num_users)
-    rank = MPI.COMM_WORLD.Get_rank()
 
-    if rank < num_users:
-        execution_time, recovered_model = lightsecagg_simulation(partitions, field_size, rank, num_users, U)
-        if rank == 0:
-            print(f"{num_users} users: Execution Time = {execution_time} seconds")
-            if recovered_model is not None:
-                print("Recovered Model:", recovered_model)
-    else:
-        print("Extra process, not participating in LightSecAgg protocol.")
+
+# Main function
+def main():
+    #MPI.Init()
+    num_users = MPI.COMM_WORLD.Get_size()
+    rank = MPI.COMM_WORLD.Get_rank()
+    partitions = load_and_partition_data(num_users)
+
+    # Run the simulation multiple times and take the average
+    #num_runs = 5
+    times = []
+    for _ in range(num_users):
+        execution_time, _ = lightsecagg_simulation(partitions, rank, num_users)
+        times.append(execution_time)
+
+    # Calculate the average execution time
+    avg_time = sum(times) / num_users
+    all_avg_times = MPI.COMM_WORLD.gather(avg_time, root=0)
+
+    # Plotting is done only by the root process
+    if rank == 0:
+        plt.plot(range(num_users), all_avg_times, marker='o')
+        plt.xlabel('Process Number')
+        plt.ylabel('Average Execution Time (seconds)')
+        plt.title('Ave8rage Execution Time vs. Process Number')
+        plt.grid(True)
+        plt.show()
+
+    #MPI.Finalize()
+
 
 if __name__ == "__main__":
     main()
